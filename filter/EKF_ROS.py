@@ -7,7 +7,7 @@ class EKF_ROS(EKF):
 
     def prediction(self, u , X, P, step):
         # EKF propagation (prediction) step
-        print("state shape: ", u.shape)
+        # print("state shape: ", u.shape)
         X_pred, P_pred = super().prediction(u, X, P, step)
         self.state_.setTime(rospy.Time.now())
         return X_pred, P_pred

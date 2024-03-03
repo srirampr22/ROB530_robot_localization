@@ -110,7 +110,7 @@ class RobotSystem:
             
             # publisher 
             self.pub.publish_pose(self.state_)
-            # self.pub.publish_path(self.state_)
+            self.pub.publish_state_path(self.state_)
 
             
             self.gt_pub.publish_gt_path(self.data['actual_state'][t])
@@ -119,7 +119,7 @@ class RobotSystem:
             # visualize landmarks
             self.landmark_visualizer.publish_landmarks([observation[2], observation[5]])
 
-            ## for plotting only
+            # for plotting only
             if(self.Lie2Cart):
                 results[t,:] = mahalanobis(self.state_,self.data['actual_state'][t],self.filter_name,self.Lie2Cart)
 

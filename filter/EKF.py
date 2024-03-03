@@ -40,9 +40,11 @@ class EKF:
         # TODO: Implement the prediction step for EKF                                 #
         # Hint: save your predicted state and cov as X_pred and P_pred                #
         ###############################################################################
-        print("u shape: ", u.shape)
-        print("X shape: ", X.shape)
 
+        X_pred = self.gfun(X, u)
+        G = self.Gfun(X, u)
+        V = self.Vfun(X, u)
+        P_pred = G @ P @ G.T + V @ self.M(u) @ V.T
 
         ###############################################################################
         #                         END OF YOUR CODE                                    #
@@ -70,7 +72,27 @@ class EKF:
         # Hint: you can use landmark1.getPosition()[0] to get the x position of 1st   #
         #       landmark, and landmark1.getPosition()[1] to get its y position        #
         ###############################################################################
+        z_hat_k1 = self.hfun(landmark1.getPosition()[0], landmark1.getPosition()[1], X_predict)
+        z_hat_k2 = self.hfun(landmark2.getPosition()[0], landmark2.getPosition()[1], X_predict)
+        H_1 = self.Hfun(landmark1.getPosition()[0], landmark1.getPosition()[1], X_predict, z_hat_k1)
+        H_2 = self.Hfun(landmark2.getPosition()[0], landmark2.getPosition()[1], X_predict, z_hat_k2)
 
+        #need to compute the stacked measurement jacobian H here
+        H = np.vstack((H_1, H_2))
+        z_hat = np.concatenate((z_hat_k1.reshape(-1, 1), z_hat_k2.reshape(-1, 1)), axis=0)
+
+        z_reformatted = np.array([z[0], z[1], z[3], z[4]])
+
+        innovaiton = z_reformatted - z_hat.flatten()
+
+        Q = block_diag(self.Q, self.Q)
+        S = H @ P_predict @ H.T + Q
+
+        K = P_predict @ H.T @ np.linalg.inv(S)
+
+        X = X_predict + K @ innovaiton
+
+        P = (np.eye(3) - K @ H) @ P_predict
 
         ###############################################################################
         #                         END OF YOUR CODE                                    #

@@ -89,13 +89,43 @@ def mahalanobis(state, ground_truth, filter_name, Lie2Cart):
     #       For InEKF, if Lie2Cart flag is true, you should use                   #
     #       state.getCartesianState() and state.getCartesianCovariance() instead. #
     ###############################################################################
+    if filter_name in ['EKF', 'UKF', 'PF']:
+        mu = state.getState()
+        Sigma = state.getCovariance()
+    elif filter_name == 'InEKF' and Lie2Cart:
+        mu = state.getCartesianState()
+        Sigma = state.getCartesianCovariance()
 
-
+    # Compute the difference between ground truth and filter estimation
+    diff = ground_truth - mu
+    
+    # Calculate the Mahalanobis distance
+    mahalanobis_distance = np.sqrt(diff.T @ np.linalg.inv(Sigma) @ diff)
+    
+    # Calculate 3*sigma values for x, y, theta
+    sigma_x, sigma_y, sigma_theta = 3 * np.sqrt(np.diag(Sigma))
+    
+    # Combine the results
+    results = np.array([
+        mahalanobis_distance,
+        diff[0], diff[1], diff[2],  # Assuming the state includes x, y, theta
+        sigma_x, sigma_y, sigma_theta
+    ])
     
     ###############################################################################
     #                         END OF YOUR CODE                                    #
     ###############################################################################
-        return results.reshape(-1)
+    return results.reshape(-1)
+
+def wedge(xi):
+    vx, vy, omega = xi
+    xi_hat = np.array([
+        [0, -omega, vx],
+        [omega, 0, vy],
+        [0, 0, 0]
+    ])
+    return xi_hat
+
     
 
 def plot_error(results, gt):
