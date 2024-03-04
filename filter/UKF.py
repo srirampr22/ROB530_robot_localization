@@ -62,9 +62,16 @@ class UKF:
         for i in range(2*self.n + 1):
             Yvalue = self.gfun(self.X[:3, i], self.X[3:, i] + u)
             self.Y.append(Yvalue)
-            predicted_mean = mean + self.w[i] * Yvalue
         
+        # print("self.w", self.w.shape)
         self.Y = np.array(self.Y).T
+        # print("self.Y", self.Y.shape)
+        predicted_mean = self.w * self.Y
+        # print("predicted_mean", predicted_mean.shape)
+        predicted_mean = np.sum(predicted_mean, axis=1)
+        # print(predicted_mean.shape)
+
+        
         temp = self.Y - predicted_mean.reshape(-1,1)
         predicted_Cov = np.dot(np.dot(temp, np.diag(self.w)), temp.T)
         P_pred = predicted_Cov
@@ -93,22 +100,43 @@ class UKF:
         # Hint: you can use landmark1.getPosition()[0] to get the x position of 1st   #
         #       landmark, and landmark1.getPosition()[1] to get its y position        #
         ###############################################################################
-        print("z", z.shape)
-        # Z_dash = np.concatenate((Z_dash_1.reshape(-1, 1), Z_dash_2.reshape(-1, 1)), axis=0)
         Z = []
+        print("Y", Y.shape)
         for i in range(2*self.n + 1):
             Z_dash_1 = self.hfun(landmark1.getPosition()[0], landmark1.getPosition()[1], Y[:,i])
             Z_dash_2 = self.hfun(landmark2.getPosition()[0], landmark2.getPosition()[1], Y[:,i])
-            print("Z_dash_1", Z_dash_1)
-            print("Z_dash_2", Z_dash_2)
             Z_dash = np.concatenate((Z_dash_1, Z_dash_2))
-            print("Z_dash", Z_dash)
             Z.append(Z_dash)
-            z_hat = X + self.w[i] * Z_dash
-            print("predicted_measurement_mean", z_hat.shape)
+            # z_hat = X_predict + self.w[i] * Z_dash
+            # print("z_hat", z_hat.shape)
+
         Z = np.array(Z).T
-        temp = Z - z_hat.reshape(-1,1)
-        predicted_measurement_cov = np.dot(np.dot(temp, np.diag(self.w)), temp.T)
+        z_hat = self.w * Z
+        z_hat = np.sum(z_hat, axis=1)
+        # print("predicted_measurement_mean", z_hat.shape)
+
+        temp_S = Z - z_hat.reshape(-1,1)
+        S = np.dot(np.dot(temp_S, np.diag(self.w)), temp_S.T) + block_diag(self.Q,self.Q)
+        # print("predicted_measurement_cov", S.shape)
+
+        temp_C = self.Y - X_predict.reshape(-1,1)
+        C = np.dot(np.dot(temp_C, np.diag(self.w)), temp_S.T)
+        # print("Cross covariance", C.shape)
+
+        K = np.dot(C, np.linalg.inv(S))
+        # print("Kalman Gain", K.shape)
+        # print("z", z.shape)
+        z_measurements = np.array([z[0], z[1], z[3], z[4]])
+        # print("z_hat", z_hat.shape)
+        innovation = z_measurements - z_hat
+        updated_mean = X_predict + np.dot(K, innovation)
+        updated_cov = P_predict - np.dot(np.dot(K, S), K.T)
+        X = updated_mean
+        P = updated_cov
+
+        # Z = np.array(Z).T
+        # temp = Z - z_hat.reshape(-1,1)
+        # predicted_measurement_cov = np.dot(np.dot(temp, np.diag(self.w)), temp.T)
         ###############################################################################
         #                         END OF YOUR CODE                                    #
         ###############################################################################
