@@ -21,13 +21,15 @@ class UKF:
         self.hfun = system.hfun  # measurement model
         self.M = system.M # motion noise covariance
         self.Q = system.Q # measurement noise covariance
-        
+        self.n = 6
         self.kappa_g = init.kappa_g
+        # self.Y_temp = []
+        
         
         self.state_ = RobotState()
         self.state_.setState(init.mu)
         self.state_.setCovariance(init.Sigma)
-        self.n = 6
+        
 
 
     def prediction(self, u, X, P , step):
@@ -38,13 +40,35 @@ class UKF:
         else:
             mean = X
             sigma = P
+        # print("mean", mean.shape)
+        # print("sigma", sigma.shape)
         ###############################################################################
         # TODO: Implement the prediction step for UKF                                 #
         # Hint: save your predicted state and cov as X_pred and P_pred                #
         ###############################################################################
+        self.Y = []
+        X_pred = np.zeros(3,)
+        P_pred = np.zeros((3,3))
+        M = self.M(u)
+        Q = self.Q
+        augmented_mean = np.hstack((mean, np.zeros((M.shape[0],))))
+        n = len(mean)   
+        m = M.shape[0]  
+        augmented_cov = np.zeros((n + m, n + m))
+        augmented_cov = block_diag(sigma, M)
 
-
-
+        self.sigma_point(augmented_mean.reshape(-1,1), augmented_cov, self.kappa_g)
+        
+        for i in range(2*self.n + 1):
+            Yvalue = self.gfun(self.X[:3, i], self.X[3:, i] + u)
+            self.Y.append(Yvalue)
+            predicted_mean = mean + self.w[i] * Yvalue
+        
+        self.Y = np.array(self.Y).T
+        temp = self.Y - predicted_mean.reshape(-1,1)
+        predicted_Cov = np.dot(np.dot(temp, np.diag(self.w)), temp.T)
+        P_pred = predicted_Cov
+        X_pred = predicted_mean
         ###############################################################################
         #                         END OF YOUR CODE                                    #
         ###############################################################################
@@ -69,8 +93,22 @@ class UKF:
         # Hint: you can use landmark1.getPosition()[0] to get the x position of 1st   #
         #       landmark, and landmark1.getPosition()[1] to get its y position        #
         ###############################################################################
-
-
+        print("z", z.shape)
+        # Z_dash = np.concatenate((Z_dash_1.reshape(-1, 1), Z_dash_2.reshape(-1, 1)), axis=0)
+        Z = []
+        for i in range(2*self.n + 1):
+            Z_dash_1 = self.hfun(landmark1.getPosition()[0], landmark1.getPosition()[1], Y[:,i])
+            Z_dash_2 = self.hfun(landmark2.getPosition()[0], landmark2.getPosition()[1], Y[:,i])
+            print("Z_dash_1", Z_dash_1)
+            print("Z_dash_2", Z_dash_2)
+            Z_dash = np.concatenate((Z_dash_1, Z_dash_2))
+            print("Z_dash", Z_dash)
+            Z.append(Z_dash)
+            z_hat = X + self.w[i] * Z_dash
+            print("predicted_measurement_mean", z_hat.shape)
+        Z = np.array(Z).T
+        temp = Z - z_hat.reshape(-1,1)
+        predicted_measurement_cov = np.dot(np.dot(temp, np.diag(self.w)), temp.T)
         ###############################################################################
         #                         END OF YOUR CODE                                    #
         ###############################################################################
