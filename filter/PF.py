@@ -47,8 +47,16 @@ class PF:
         # Hint: Use rng.standard_normal instead of np.random.randn.                   #
         #       It is statistically more random.                                      #
         ###############################################################################
+        # print("u: ", u.shape)
+        # print("particles: ", particles)
+        for i in range(self.n):
+            # print(self.particles[:,i].shape)
+            u = u + rng.standard_normal(3) @ self.M(u)
+            # print("u: ", u.shape)
+            self.particles[:,i] = self.gfun(self.particles[:,i], u)
+            self.particles[:,i] = np.clip(self.particles[:,i], 0, self.n) 
 
-
+        # print("particles: ", self.particles.size)
 
         ###############################################################################
         #                         END OF YOUR CODE                                    #
@@ -70,6 +78,15 @@ class PF:
         # Hint: you can use landmark1.getPosition()[0] to get the x position of 1st   #
         #       landmark, and landmark1.getPosition()[1] to get its y position        #
         ###############################################################################
+        # for i in range(self.n):
+        w = self.importance_measurement(z, self.particles, landmark1, landmark2)
+        # print("w: ", w.shape)
+        # print("before particle_weight_sum: ", np.sum(self.particle_weight))
+        self.particle_weight = np.multiply(self.particle_weight, w)
+        self.particle_weight = self.particle_weight / np.sum(self.particle_weight)
+        self.Neff = 1 / np.sum(np.power(self.particle_weight, 2))
+        if self.Neff < self.n / 5:
+            self.resampling()
 
 
         ###############################################################################
@@ -118,4 +135,20 @@ class PF:
 
     def setState(self, state):
         self.state_ = state
+
+    def importance_measurement(self, z, particles, landmark1, landmark2):
+        # compare important weight for each particle based on the obtain range and bearing measurements
+        # Inputs:
+        # z: measurement
+        w = np.zeros([self.n, 1]) # importance weights
+        for i in range(self.n):
+            z_hat1 = self.hfun(landmark1.getPosition()[0], landmark1.getPosition()[1], particles[:,i])
+            z_hat2 = self.hfun(landmark2.getPosition()[0], landmark2.getPosition()[1], particles[:,i])
+            z_hat = np.concatenate((z_hat1.reshape(-1, 1), z_hat2.reshape(-1, 1)), axis=0)
+            z_reformatted = np.array([z[0], z[1], z[3], z[4]])
+            v = z_reformatted - z_hat.flatten()
+            w[i] = multivariate_normal.pdf(v,np.array([0,0,0,0]), block_diag(self.Q, self.Q))
+            # print("w: ", w[i].shape)
+
+        return w
 

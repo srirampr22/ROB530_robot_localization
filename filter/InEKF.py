@@ -165,7 +165,7 @@ class InEKF:
         temp = I - np.dot(L, H)
         self.Sigma = np.dot(np.dot(temp, self.sigma_pred), temp.T) + np.dot(np.dot(L, N), L.T)
         # Compute the stacked innovation
-        print("self.Sigma", self.Sigma)
+        # print("self.Sigma", self.Sigma)
 
         ###############################################################################
         #                         END OF YOUR CODE                                    #
